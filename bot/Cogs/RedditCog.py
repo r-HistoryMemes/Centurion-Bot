@@ -10,7 +10,7 @@ from google.cloud import datastore
 from asyncio import sleep
 
 logger = logging.getLogger('reddit')
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 handler = logging.FileHandler(filename='/home/alwin/botlog/reddit.log', mode='a+')
 handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s",
                                        datefmt="%d/%m/%Y %H:%M:%S"))
@@ -176,33 +176,35 @@ class RedditCog(BaseCog.Base):
                 try:
                     rule_broken = match.group(2)
                     if rule_broken in self.BANNABLE_OFFENSES:
-                        self.ban_user(
+                        logger.info("Rule broken by post {} is a bannable offense (rule {}), will ban user".format(post.id, rule_broken))
+                        await self.ban_user(
                             post.author,
                             note=match.group(1),
                             message=self.ban_message.format(
                                 self.BANS[match.group(2)],
                                 "https://www.reddit.com" + log.target_permalink),
-                            duration=self.BANNABLE_OFFENSES[rule_broken].duration
+                            duration=self.BANNABLE_OFFENSES[rule_broken]["duration"]
                         )
                     else:
+                        logger.info("Rule broken by post {} is not a bannable offense (rule {}), post will be removed and sticky added".format(post.id, rule_broken))
                         with self.client.transaction():
                             comment_entity = datastore.Entity(key=self.client.key("Action"))
                             comment_entity["ID"] = post.id
                             comment_entity["ACTION"] = "reply"
                             comment_entity["TYPE"] = "post"
-                            comment_entity["LINK"] = url
+                            comment_entity["LINK"] = "reddit.com" + post.permalink
                             comment_entity["MOD"] = "CenturionBot"
                             comment_entity["TIME"] = datetime.utcnow()
                             self.client.put(comment_entity)
                         
                         reply = post.reply("""Your post has been removed.
                         
-                        It breaks the following rule: {0}""".format(self.BANS[match.group(2)]))
+It breaks the following rule: {0}""".format(self.BANS[match.group(2)]))
                         reply.mod.distinguish(sticky=True)  # Sticky the comment
                         reply.mod.lock()  # lock reply
 
                     post.mod.remove()
-                    logger.warning("removed post with id %s", post.id)
+                    logger.info("removed post with id %s", post.id)
                     with self.client.transaction():  # add to database
                         self.client.put(post_entity)
                 except AttributeError as e:
@@ -211,12 +213,15 @@ class RedditCog(BaseCog.Base):
 
 
     async def ban_user(self, user, note, message, duration=1):
-        if not any(self.r.subreddit(self.SUB).banned(redditor=post.author.name)):
-            self.r.subreddit(self.SUB).banned.add(note, 
+        if user not in list(self.r.subreddit(self.SUB).banned(redditor=user)):
+            logger.info("User {} is not banned yet and will be banned for {}d for {}".format(user, duration, note))
+            self.r.subreddit(self.SUB).banned.add( 
                 user,
                 note=note,
                 ban_message=message,
                 duration=duration)
+        else:
+            logger.info('User {} is already banned from the subreddit and will not get another ban'.format(user))
 
     async def post_reply(self, limit=40):
         """
