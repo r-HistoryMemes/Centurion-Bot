@@ -25,7 +25,7 @@ class RedditCog(BaseCog.Base):
             password=getenv("REDPASSWD"),
             client_id=getenv("REDID"),
             client_secret=getenv("REDSEC"),
-            user_agent="Tim the Centurion v5.0"
+            user_agent="Tim the Centurion v5.1"
         )
         self.pattern = re.compile('REMOVED: (RULE (\d{1,2}))')  # regex to detect flairs
 
@@ -50,6 +50,9 @@ class RedditCog(BaseCog.Base):
         BAN_10 = "Rule 10: Post is karmawhoring (asking for upvotes/interaction or has no humorous intent)"
         BAN_11 = "Rule 11: Post has a lazy title, or the meme depends on the title to work"
         BAN_12 = "Rule 12: No WW2 memes during the weekend (Saturday-Sunday EST), and no complaining about WW2 memes"
+
+        # A general list of infractions and their messages - named "ban" since previously all of them were bannable offenses
+        # to be refactored :)
         self.BANS = {
             "1": BAN_1,
             "2": BAN_2,
@@ -60,6 +63,12 @@ class RedditCog(BaseCog.Base):
             "11": BAN_11,
             "12": BAN_12
         }
+
+        # Offenses that are bannable
+        self.BANNABLE_OFFENSES = {
+            "2": {"duration": 1}
+        }
+
         # list of banned sites
         self.banned_sites = [
     "factcheck.org",
@@ -161,33 +170,53 @@ class RedditCog(BaseCog.Base):
             post_entity["MOD"] = f"{log.mod}"
             post_entity["TIME"] = datetime.utcnow()
 
-            # if the user is already banned just remove the post
-            try:
-                if any(self.r.subreddit(self.SUB).banned(redditor=post.author.name)):
-                    post.mod.remove()
-                    with self.client.transaction():
-                        self.client.put(post_entity)
-                    continue
-            except AttributeError:
-                # post was deleted by author
-                continue
-
-            # remove post and ban the user
+            # remove post, and ban user if necessary
             match = self.pattern.match(post.link_flair_text)
             if match:
-                if match.group(2) in self.BANS.keys():
-                    post.mod.remove()
-                    self.r.subreddit(self.SUB).banned.add(
-                        post.author,
-                        note=match.group(1),
-                        ban_message=self.ban_message.format(
-                            self.BANS[match.group(2)],
-                            "https://www.reddit.com" + log.target_permalink),
-                        duration=2)
+                try:
+                    rule_broken = match.group(2)
+                    if rule_broken in self.BANNABLE_OFFENSES:
+                        self.ban_user(
+                            post.author,
+                            note=match.group(1),
+                            message=self.ban_message.format(
+                                self.BANS[match.group(2)],
+                                "https://www.reddit.com" + log.target_permalink),
+                            duration=self.BANNABLE_OFFENSES[rule_broken].duration
+                        )
+                    else:
+                        with self.client.transaction():
+                            comment_entity = datastore.Entity(key=self.client.key("Action"))
+                            comment_entity["ID"] = post.id
+                            comment_entity["ACTION"] = "reply"
+                            comment_entity["TYPE"] = "post"
+                            comment_entity["LINK"] = url
+                            comment_entity["MOD"] = "CenturionBot"
+                            comment_entity["TIME"] = datetime.utcnow()
+                            self.client.put(comment_entity)
+                        
+                        reply = post.reply("""Your post has been removed.
+                        
+                        It breaks the following rule: {0}""".format(self.BANS[match.group(2)]))
+                        reply.mod.distinguish(sticky=True)  # Sticky the comment
+                        reply.mod.lock()  # lock reply
 
+                    post.mod.remove()
+                    logger.warning("removed post with id %s", post.id)
                     with self.client.transaction():  # add to database
                         self.client.put(post_entity)
-                    logger.warning("removed post with id %s", post.id)
+                except AttributeError as e:
+                    logger.error("Error", e)
+                    continue 
+
+
+    async def ban_user(self, user, note, message, duration=1):
+        if not any(self.r.subreddit(self.SUB).banned(redditor=post.author.name)):
+            self.r.subreddit(self.SUB).banned.add(note, 
+                user,
+                note=note,
+                ban_message=message,
+                duration=duration)
 
     async def post_reply(self, limit=40):
         """
