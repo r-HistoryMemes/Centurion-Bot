@@ -38,18 +38,25 @@ class RedditCog(BaseCog.Base):
         self.sots_id = reply_info["id"]
 
         self.SUB = 'HistoryMemes'
-        self.removal_message = "your comment has been removed because it contained a link to a political " \
+        self.post_removal_message = """Your post has been removed for the following reason:
+
+{0}
+
+I am a bot and this action was performed by the moderators of /r/HistoryMemes.
+
+If you have any questions or concerns about your post's removal, please send us a modmail with a link to your removed post."""
+        self.comment_removal_message = "your comment has been removed because it contained a link to a political " \
                                "website/sub: {0}\n\nif you think this was a mistake, please reply to this message"
         self.ban_message = """{0}\n\nPost in question: {1}"""
-        BAN_1 = "Rule 1: Post is not about historical event (see extended rules for clarification)"
-        BAN_2 = "Rule 2: No reposts, or posts with the same format and joke, are allowed"
-        BAN_4 = "Rule 4: Topic falls within 20 year exclusion period, covers a hot topic, or is a meta loophole " \
-                "(see extended rules for examples)"
-        BAN_5 = "Rule 5: Post is a banned format (see extended rules for a list of banned formats)"
-        BAN_9 = "Rule 9: Meme is a banned topic/low quality post (see extended rules for a list and definition)"
-        BAN_10 = "Rule 10: Post is karmawhoring (asking for upvotes/interaction or has no humorous intent)"
-        BAN_11 = "Rule 11: Post has a lazy title, or the meme depends on the title to work"
-        BAN_12 = "Rule 12: No WW2 memes during the weekend (Saturday-Sunday EST), and no complaining about WW2 memes"
+
+        BAN_1 = "Rule 1: Post is not about a historical event. (See the extended rules for clarification.)"
+        BAN_2 = "Rule 2: No reposts, or posts with the same format and joke, are allowed."
+        BAN_4 = "Rule 4: Topic falls within 20 year exclusion period, covers a hot topic, or is a meta loophole."
+        BAN_5 = "Rule 5: Post is a banned format. (See the extended rules for a list of banned formats.)"
+        BAN_9 = "Rule 9: Meme is a low quality post. (See extended rules for a definition and a list.)"
+        BAN_10 = "Rule 10: Post is karmawhoring, either asking for upvotes/interaction or has no humorous intent."
+        BAN_11 = "Rule 11: Post has a lazy title, or the meme depends on the title to work."
+        BAN_12 = "Rule 12: No WW2 memes during the weekend (Saturday-Sunday EST), and no complaining about WW2 memes."
 
         # A general list of infractions and their messages - named "ban" since previously all of them were bannable offenses
         # to be refactored :)
@@ -121,7 +128,7 @@ class RedditCog(BaseCog.Base):
             if len(sites) > 0:  # if there's at least 1
                 try:
                     comment.mod.remove()  # remove comment
-                    comment.mod.send_removal_message(self.removal_message.format(sites[0]),
+                    comment.mod.send_removal_message(self.comment_removal_message.format(sites[0]),
                                                      "political site", type="private")
 
                     with self.client.transaction():  # add action to database
@@ -197,9 +204,7 @@ class RedditCog(BaseCog.Base):
                             comment_entity["TIME"] = datetime.utcnow()
                             self.client.put(comment_entity)
                         
-                        reply = post.reply("""Your post has been removed.
-                        
-It breaks the following rule: {0}""".format(self.BANS[match.group(2)]))
+                        reply = post.reply(self.post_removal_message.format(self.BANS[match.group(2)]))
                         reply.mod.distinguish(sticky=True)  # Sticky the comment
                         reply.mod.lock()  # lock reply
 
