@@ -78,6 +78,7 @@ If you have any questions or concerns about your post's removal, please send us 
         # Offenses that are bannable
         self.BANNABLE_OFFENSES = {
             "2": {"duration": 1},
+            "12": {"duration": 2},
             "13": {"duration": 3}
         }
 
