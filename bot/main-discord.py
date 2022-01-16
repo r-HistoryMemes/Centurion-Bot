@@ -284,17 +284,6 @@ async def on_ready():
     logging.info("logged in")
 
 
-@bot.event
-async def on_member_remove(member):
-    msg = random.choice(insults)
-    name = member.display_name
-
-    asyncio.sleep(0.5)
-    welcome = discord.utils.get(member.guild.channels, name="welcome")
-
-    await welcome.send(msg.format(name))
-
-
 bot.add_cog(LinkCog(bot))
 bot.add_cog(EvalCog(bot))
 
