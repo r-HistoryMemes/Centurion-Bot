@@ -56,7 +56,10 @@ If you have any questions or concerns about your post's removal, please send us 
         BAN_9 = "Rule 9: Meme is a low quality post. (See extended rules for a definition and a list.)"
         BAN_10 = "Rule 10: Post is karmawhoring, either asking for upvotes/interaction or has no humorous intent."
         BAN_11 = "Rule 11: Post has a lazy title, or the meme depends on the title to work."
-        BAN_12 = "Rule 12: No WW2 memes during the weekend (Saturday-Sunday EST), and no complaining about WW2 memes."
+        BAN_12 = "Rule 12: No 1900s during the weekend (Saturday-Sunday EST), and no complaining about rule 12."
+        BAN_13 = "Rule 13: 9/11 Memes\n\nPlease adhere to the specifications defined in Rule 13 about 9/11 Memes. " \
+                 "This includes posting at disallowed times, glorification of the attack or groups responsible, " \
+                 "spreading conspiracy theory, or posting graphic imagery of the victims and event(s)."
 
         # A general list of infractions and their messages - named "ban" since previously all of them were bannable offenses
         # to be refactored :)
@@ -68,12 +71,15 @@ If you have any questions or concerns about your post's removal, please send us 
             "9": BAN_9,
             "10": BAN_10,
             "11": BAN_11,
-            "12": BAN_12
+            "12": BAN_12,
+            "13": BAN_13
         }
 
         # Offenses that are bannable
         self.BANNABLE_OFFENSES = {
-            "2": {"duration": 1}
+            "2": {"duration": 1},
+            "12": {"duration": 2},
+            "13": {"duration": 3}
         }
 
         # list of banned sites
