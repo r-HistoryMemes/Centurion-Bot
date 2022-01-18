@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Run a multi-line script
         run: |
-          echo ${{ secrets.BOT_SERVER_KEY }} > /tmp/github.key
+          echo "${{ secrets.BOT_SERVER_KEY }}" > /tmp/github.key
           chmod 600 /tmp/github.key
           scp -i /tmp/github.key -r . ${{ secrets.BOT_SERVER_USER }}@${{ secrets.BOT_SERVER_HOST}}:/tmp 
 
