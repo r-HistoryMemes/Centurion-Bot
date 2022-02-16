@@ -221,12 +221,12 @@ If you have any questions or concerns about your post's removal, please send us 
                             self.client.put(post_entity)
                 except AttributeError as e:
                     logger.error("Error", e)
-                    continue 
+                    continue
 
     async def ban_user(self, user, note, message, duration=1):
         if user not in list(self.r.subreddit(self.SUB).banned(redditor=user)):
             logger.info("User {} is not banned yet and will be banned for {}d for {}".format(user, duration, note))
-            self.r.subreddit(self.SUB).banned.add( 
+            self.r.subreddit(self.SUB).banned.add(
                 user,
                 note=note,
                 ban_message=message,
@@ -247,8 +247,7 @@ If you have any questions or concerns about your post's removal, please send us 
                 continue
             if post.id == self.sots_id:
                 continue
-            query = self.client.query(kind="Action").add_filter('TYPE', '=', 'comment') \
-                .add_filter('ACTION', '=', 'reply').add_filter('ID', '=', post.id)
+            query = self.client.query(kind="Action").add_filter('ACTION', '=', 'reply').add_filter('ID', '=', post.id)
             await sleep(1)
             if list(query.fetch()) != [] or post.removed:
                 continue
