@@ -188,40 +188,40 @@ If you have any questions or concerns about your post's removal, please send us 
             if match:
                 try:
                     rule_broken = match.group(2)
-                    if rule_broken in self.BANNABLE_OFFENSES:
-                        logger.info("Rule broken by post {} is a bannable offense (rule {}), will ban user".format(post.id, rule_broken))
-                        await self.ban_user(
-                            post.author,
-                            note=match.group(1),
-                            message=self.ban_message.format(
-                                self.BANS[match.group(2)],
-                                "https://www.reddit.com" + log.target_permalink),
-                            duration=self.BANNABLE_OFFENSES[rule_broken]["duration"]
-                        )
-                    else:
-                        logger.info("Rule broken by post {} is not a bannable offense (rule {}), post will be removed and sticky added".format(post.id, rule_broken))
-                        with self.client.transaction():
-                            comment_entity = datastore.Entity(key=self.client.key("Action"))
-                            comment_entity["ID"] = post.id
-                            comment_entity["ACTION"] = "reply"
-                            comment_entity["TYPE"] = "post"
-                            comment_entity["LINK"] = "reddit.com" + post.permalink
-                            comment_entity["MOD"] = "CenturionBot"
-                            comment_entity["TIME"] = datetime.utcnow()
-                            self.client.put(comment_entity)
-                        
-                        reply = post.reply(self.post_removal_message.format(self.BANS[match.group(2)]))
-                        reply.mod.distinguish(sticky=True)  # Sticky the comment
-                        reply.mod.lock()  # lock reply
+                    if rule_broken in self.BANS:
+                        if rule_broken in self.BANNABLE_OFFENSES:
+                            logger.info("Rule broken by post {} is a bannable offense (rule {}), will ban user".format(post.id, rule_broken))
+                            await self.ban_user(
+                                post.author,
+                                note=match.group(1),
+                                message=self.ban_message.format(
+                                    self.BANS[match.group(2)],
+                                    "https://www.reddit.com" + log.target_permalink),
+                                duration=self.BANNABLE_OFFENSES[rule_broken]["duration"]
+                            )
+                        else:
+                            logger.info("Rule broken by post {} is not a bannable offense (rule {}), post will be removed and sticky added".format(post.id, rule_broken))
+                            with self.client.transaction():
+                                comment_entity = datastore.Entity(key=self.client.key("Action"))
+                                comment_entity["ID"] = post.id
+                                comment_entity["ACTION"] = "reply"
+                                comment_entity["TYPE"] = "post"
+                                comment_entity["LINK"] = "reddit.com" + post.permalink
+                                comment_entity["MOD"] = "CenturionBot"
+                                comment_entity["TIME"] = datetime.utcnow()
+                                self.client.put(comment_entity)
 
-                    post.mod.remove()
-                    logger.info("removed post with id %s", post.id)
-                    with self.client.transaction():  # add to database
-                        self.client.put(post_entity)
+                            reply = post.reply(self.post_removal_message.format(self.BANS[match.group(2)]))
+                            reply.mod.distinguish(sticky=True)  # Sticky the comment
+                            reply.mod.lock()  # lock reply
+
+                        post.mod.remove()
+                        logger.info("removed post with id %s", post.id)
+                        with self.client.transaction():  # add to database
+                            self.client.put(post_entity)
                 except AttributeError as e:
                     logger.error("Error", e)
                     continue 
-
 
     async def ban_user(self, user, note, message, duration=1):
         if user not in list(self.r.subreddit(self.SUB).banned(redditor=user)):
@@ -247,7 +247,7 @@ If you have any questions or concerns about your post's removal, please send us 
                 continue
             if post.id == self.sots_id:
                 continue
-            query = self.client.query(kind="Action").add_filter('TYPE', '=', 'post') \
+            query = self.client.query(kind="Action").add_filter('TYPE', '=', 'comment') \
                 .add_filter('ACTION', '=', 'reply').add_filter('ID', '=', post.id)
             await sleep(1)
             if list(query.fetch()) != [] or post.removed:
@@ -257,7 +257,7 @@ If you have any questions or concerns about your post's removal, please send us 
                 comment_entity = datastore.Entity(key=self.client.key("Action"))
                 comment_entity["ID"] = post.id
                 comment_entity["ACTION"] = "reply"
-                comment_entity["TYPE"] = "post"
+                comment_entity["TYPE"] = "comment"
                 comment_entity["LINK"] = url
                 comment_entity["MOD"] = "CenturionBot"
                 comment_entity["TIME"] = datetime.utcnow()
